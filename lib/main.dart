@@ -13,7 +13,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: '할 일 관리',
       theme: ThemeData(
-        primarySwatch: Colors.blue,
+        primarySwatch: Colors.deepPurple,
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
       home: TodoListPage(),
@@ -77,7 +77,7 @@ class _TodoListPageState extends State<TodoListPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('남은 할 일'),
+        title: Text('예롱 기프티콘'),
       ),
       body: Padding(
         padding: const EdgeInsets.all(10.0),
@@ -153,12 +153,24 @@ class _TodoListPageState extends State<TodoListPage> {
             ),
             StreamBuilder<QuerySnapshot>(
                 // 스트림은 자료가 변경되었을 때 반응하여 화면을 다시 그려준다.
-                stream: Firestore.instance.collection('todo').snapshots(),
+                stream: Firestore.instance
+                    .collection('todo')
+                    // .orderBy('isDone', descending: false)
+                    // .orderBy("expired", descending: false)
+                    .snapshots(),
                 builder: (context, snapshot) {
                   if (!snapshot.hasData) {
                     return CircularProgressIndicator();
                   }
+
                   final documents = snapshot.data.documents;
+                  documents.sort((a, b) => b['isDone']
+                      ? (a['expired'].compareTo(b['expired']) <= 0
+                          ? -1
+                          : -2) // 오름차순
+                      : (a['expired'].compareTo(b['expired']) <= 0
+                          ? 2
+                          : 1)); // 내림차순
 
                   // UI 반환
                   return Expanded(
@@ -178,6 +190,7 @@ class _TodoListPageState extends State<TodoListPage> {
     final todo = Todo(doc["title"],
         expired: doc['expired'], used: doc['used'], isDone: doc['isDone']);
     return ListTile(
+      leading: FlutterLogo(),
       onTap: () => _toggleTodo(doc),
       title: Text(
         todo.title,
