@@ -77,6 +77,7 @@ class _TodoListPageState extends State<TodoListPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: Colors.deepPurple,
         title: Text('예롱 기프티콘'),
       ),
       body: Padding(
@@ -98,7 +99,7 @@ class _TodoListPageState extends State<TodoListPage> {
                           lastDate: DateTime(2050),
                           builder: (BuildContext context, Widget child) {
                             return Theme(
-                              data: ThemeData.dark(),
+                              data: ThemeData.light(),
                               child: child,
                             );
                           });
@@ -133,21 +134,18 @@ class _TodoListPageState extends State<TodoListPage> {
                 )),
                 Padding(
                   padding: const EdgeInsets.all(8.0),
-                  child: FlatButton(
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(18.0),
-                          side: BorderSide(color: Colors.red)),
-                      color: Colors.pinkAccent,
-                      textColor: Colors.white,
-                      child: Text("추가"),
-                      onPressed: () => {
-                            _addTodo(Todo(_todoController.text,
-                                expired: Timestamp.fromMillisecondsSinceEpoch(
-                                    _selectedDate.millisecondsSinceEpoch))),
-                            setState(() {
-                              _selectedDate = null;
-                            })
-                          }),
+                  child: IconButton(
+                    color: Colors.pinkAccent,
+                    icon: Icon(Icons.add),
+                    onPressed: () => {
+                      _addTodo(Todo(_todoController.text,
+                          expired: Timestamp.fromMillisecondsSinceEpoch(
+                              _selectedDate.millisecondsSinceEpoch))),
+                      setState(() {
+                        _selectedDate = null;
+                      })
+                    },
+                  ),
                 )
               ],
             ),
@@ -164,6 +162,7 @@ class _TodoListPageState extends State<TodoListPage> {
                   }
 
                   final documents = snapshot.data.documents;
+
                   documents.sort((a, b) => b['isDone']
                       ? (a['expired'].compareTo(b['expired']) <= 0
                           ? -1
@@ -190,25 +189,83 @@ class _TodoListPageState extends State<TodoListPage> {
     final todo = Todo(doc["title"],
         expired: doc['expired'], used: doc['used'], isDone: doc['isDone']);
     return ListTile(
-      leading: FlutterLogo(),
-      onTap: () => _toggleTodo(doc),
-      title: Text(
-        todo.title,
-        style: todo.isDone
-            ? TextStyle(
-                decoration: TextDecoration.lineThrough,
-                fontStyle: FontStyle.italic,
+        onTap: () => {
+              Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => DetailPage(todo.title)))
+            },
+        title: Text(
+          todo.title,
+          style: todo.isDone
+              ? TextStyle(
+                  decoration: TextDecoration.lineThrough,
+                  fontStyle: FontStyle.italic,
+                )
+              : null,
+        ),
+        subtitle: Text(
+          DateFormat('yyyy/MM/dd').format(todo.expired.toDate()).toString() +
+              " 까지",
+        ),
+        trailing: FlatButton(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18.0),
+            ),
+            color: todo.isDone ? Colors.grey : Colors.pinkAccent,
+            textColor: Colors.white,
+            child: todo.isDone ? Text("사용완료") : Text("사용하기"),
+            onPressed: () => {_toggleTodo(doc)}));
+  }
+}
+
+class DetailPage extends StatefulWidget {
+  final String title;
+
+  const DetailPage(this.title);
+
+  @override
+  _DetailPageState createState() => _DetailPageState();
+}
+
+class _DetailPageState extends State<DetailPage> {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+        appBar: AppBar(
+          title: Text(""),
+          backgroundColor: Colors.deepPurple,
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back_ios_sharp),
+            color: Colors.white,
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                '${widget.title}',
+                style: TextStyle(fontSize: 22),
+              ),
+              Text('유효기간: '),
+              Text('사용날짜: '),
+              SizedBox(
+                  width: 300,
+                  height: 300,
+                  child: Image.network('https://picsum.photos/250?image=9')),
+              FlatButton(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18.0),
+                ),
+                color: Colors.pinkAccent,
+                textColor: Colors.white,
+                onPressed: () {},
+                child: true ? Text("사용완료") : Text("사용하기"),
               )
-            : null,
-      ),
-      subtitle: Text(
-        DateFormat('yyyy/MM/dd').format(todo.expired.toDate()).toString() +
-            " 까지",
-      ),
-      trailing: IconButton(
-        icon: Icon(Icons.delete_forever),
-        onPressed: () => {_deleteTodo(doc)},
-      ),
-    );
+            ],
+          ),
+        ));
   }
 }
