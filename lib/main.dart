@@ -1,3 +1,5 @@
+
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -30,6 +32,34 @@ class Todo {
   Todo(this.title, {this.expired, this.used, this.isDone = false});
 }
 
+var _todoController = TextEditingController();
+
+void _addTodo(Todo todo) {
+  // setState(() {
+  //   _items.add(todo);
+  //   _todoController.text = "";
+  // });
+  Firestore.instance.collection('todo').add(
+      {'title': todo.title, 'expired': todo.expired, 'isDone': todo.isDone});
+  _todoController.text = "";
+}
+
+void _deleteTodo(DocumentSnapshot doc) {
+  // setState(() {
+  //   _items.remove(todo);
+  // });
+  Firestore.instance.collection('todo').document(doc.documentID).delete();
+}
+
+void _toggleTodo(DocumentSnapshot doc) {
+  // setState(() {
+  //   todo.isDone = !todo.isDone;
+  // });
+  Firestore.instance.collection("todo").document(doc.documentID).updateData({
+    'isDone': !doc['isDone'],
+  });
+}
+
 class TodoListPage extends StatefulWidget {
   @override
   _TodoListPageState createState() => _TodoListPageState();
@@ -37,35 +67,8 @@ class TodoListPage extends StatefulWidget {
 
 class _TodoListPageState extends State<TodoListPage> {
   // final _items = <Todo>[];
-  var _todoController = TextEditingController();
 
   DateTime _selectedDate;
-
-  void _addTodo(Todo todo) {
-    // setState(() {
-    //   _items.add(todo);
-    //   _todoController.text = "";
-    // });
-    Firestore.instance.collection('todo').add(
-        {'title': todo.title, 'expired': todo.expired, 'isDone': todo.isDone});
-    _todoController.text = "";
-  }
-
-  void _deleteTodo(DocumentSnapshot doc) {
-    // setState(() {
-    //   _items.remove(todo);
-    // });
-    Firestore.instance.collection('todo').document(doc.documentID).delete();
-  }
-
-  void _toggleTodo(DocumentSnapshot doc) {
-    // setState(() {
-    //   todo.isDone = !todo.isDone;
-    // });
-    Firestore.instance.collection("todo").document(doc.documentID).updateData({
-      'isDone': !doc['isDone'],
-    });
-  }
 
   @override
   void dispose() {
@@ -190,10 +193,8 @@ class _TodoListPageState extends State<TodoListPage> {
         expired: doc['expired'], used: doc['used'], isDone: doc['isDone']);
     return ListTile(
         onTap: () => {
-              Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) => DetailPage(todo.title)))
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (context) => DetailPage(doc)))
             },
         title: Text(
           todo.title,
@@ -220,9 +221,9 @@ class _TodoListPageState extends State<TodoListPage> {
 }
 
 class DetailPage extends StatefulWidget {
-  final String title;
+  final DocumentSnapshot doc;
 
-  const DetailPage(this.title);
+  const DetailPage(this.doc);
 
   @override
   _DetailPageState createState() => _DetailPageState();
@@ -232,40 +233,60 @@ class _DetailPageState extends State<DetailPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: AppBar(
-          title: Text(""),
-          backgroundColor: Colors.deepPurple,
-          leading: IconButton(
-            icon: Icon(Icons.arrow_back_ios_sharp),
-            color: Colors.white,
-            onPressed: () => Navigator.of(context).pop(),
-          ),
+      appBar: AppBar(
+        title: Text(""),
+        backgroundColor: Colors.deepPurple,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back_ios_sharp),
+          color: Colors.white,
+          onPressed: () => Navigator.of(context).pop(),
         ),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                '${widget.title}',
-                style: TextStyle(fontSize: 22),
-              ),
-              Text('유효기간: '),
-              Text('사용날짜: '),
-              SizedBox(
-                  width: 300,
-                  height: 300,
-                  child: Image.network('https://picsum.photos/250?image=9')),
-              FlatButton(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(18.0),
-                ),
-                color: Colors.pinkAccent,
-                textColor: Colors.white,
-                onPressed: () {},
-                child: true ? Text("사용완료") : Text("사용하기"),
-              )
-            ],
+      ),
+      body: StreamBuilder<DocumentSnapshot>(
+          // 스트림은 자료가 변경되었을 때 반응하여 화면을 다시 그려준다.
+          stream: Firestore.instance
+              .collection('todo')
+              .document(widget.doc.documentID)
+              .snapshots(),
+          builder: (context, snapshot) {
+            final document = snapshot.data;
+
+            // UI 반환
+            return _buildDetailWidget(document);
+          }),
+    );
+  }
+
+  Widget _buildDetailWidget(DocumentSnapshot doc) {
+    //FireStore 문서는 DocumentSnapshot 클래스의 인스턴스
+    final todo = Todo(doc["title"],
+        expired: doc['expired'], used: doc['used'], isDone: doc['isDone']);
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            '${todo.title}',
+            style: TextStyle(fontSize: 22),
           ),
-        ));
+          Text(
+              '유효기간: ${DateFormat('yyyy/MM/dd').format(todo.expired.toDate()).toString()}'),
+          (todo.used != null) ? Text('사용날짜: ${todo.used}') : Text(""),
+          SizedBox(
+              width: 300,
+              height: 300,
+              child: Image.network('https://picsum.photos/250?image=9')),
+          FlatButton(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18.0),
+            ),
+            color: todo.isDone ? Colors.grey : Colors.pinkAccent,
+            textColor: Colors.white,
+            onPressed: () => {_toggleTodo(doc)},
+            child: todo.isDone ? Text("사용완료") : Text("사용하기"),
+          ),
+        ],
+      ),
+    );
   }
 }
