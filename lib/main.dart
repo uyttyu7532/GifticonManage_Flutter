@@ -1,10 +1,21 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:async';
+import 'dart:io';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+
+import 'package:path/path.dart'
+    as path; //중요!!!! 임시 저장소에 압충하기 위해 입시 저장소 path을 알아내기 위한 라이브러리
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 void main() {
   runApp(MyApp());
@@ -61,7 +72,7 @@ class Todo {
   Timestamp used;
   String photo;
 
-  Todo(this.title, {this.expired, this.used, this.isDone = false});
+  Todo(this.title, this.expired, {this.used, this.isDone = false, this.photo});
 }
 
 void _deleteTodo(DocumentSnapshot doc) {
@@ -72,6 +83,12 @@ void _toggleTodo(DocumentSnapshot doc) {
   Firestore.instance.collection("todo").document(doc.documentID).updateData({
     'isDone': !doc['isDone'],
   });
+
+  if (!doc['isDone']) {
+    Firestore.instance.collection("todo").document(doc.documentID).updateData({
+      'used': DateTime.now().toLocal(),
+    });
+  }
 }
 
 class TodoListPage extends StatefulWidget {
@@ -165,8 +182,8 @@ class _TodoListPageState extends State<TodoListPage> {
 
   Widget _buildItemWidget(DocumentSnapshot doc) {
     //FireStore 문서는 DocumentSnapshot 클래스의 인스턴스
-    final todo = Todo(doc["title"],
-        expired: doc['expired'], used: doc['used'], isDone: doc['isDone']);
+    final todo = Todo(doc["title"], doc['expired'],
+        used: doc['used'], isDone: doc['isDone'], photo: doc['photo']);
     return ListTile(
         onLongPress: () => {_showDialog(doc)},
         onTap: () => {
@@ -182,10 +199,19 @@ class _TodoListPageState extends State<TodoListPage> {
                 )
               : null,
         ),
-        subtitle: Text(
-          DateFormat('yyyy/MM/dd').format(todo.expired.toDate()).toString() +
-              " 까지",
-        ),
+        subtitle: !widget.isShowDone
+            ? (Text(
+                DateFormat('yyyy/MM/dd')
+                        .format(todo.expired.toDate())
+                        .toString() +
+                    " 까지",
+              ))
+            : (Text(
+                DateFormat('yyyy/MM/dd hh:mm:ss')
+                        .format(todo.used.toDate())
+                        .toString() +
+                    " 사용",
+              )),
         trailing: FlatButton(
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(18.0),
@@ -207,6 +233,10 @@ class DetailPage extends StatefulWidget {
 }
 
 class _DetailPageState extends State<DetailPage> {
+  void initState() {
+    super.initState();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -230,8 +260,8 @@ class _DetailPageState extends State<DetailPage> {
 
   Widget _buildDetailWidget(DocumentSnapshot doc) {
     //FireStore 문서는 DocumentSnapshot 클래스의 인스턴스
-    final todo = Todo(doc["title"],
-        expired: doc['expired'], used: doc['used'], isDone: doc['isDone']);
+    final todo = Todo(doc["title"], doc['expired'],
+        used: doc['used'], isDone: doc['isDone'], photo: doc['photo']);
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -261,7 +291,12 @@ class _DetailPageState extends State<DetailPage> {
           SizedBox(
               width: 300,
               height: 300,
-              child: Image.network('https://picsum.photos/250?image=9')),
+              child: todo.photo == null
+                  ? Icon(Icons.warning_amber_sharp)
+                  : Image.network(
+                      todo.photo,
+                      fit: BoxFit.cover,
+                    )),
         ],
       ),
     );
@@ -277,9 +312,37 @@ class _AddPageState extends State<AddPage> {
   var _todoController = TextEditingController();
   DateTime _selectedDate;
 
+  final ImagePicker _picker = ImagePicker();
+  PickedFile file;
+  String _uploadedFileURL;
+
+  pickImageFromGallery() async {
+    PickedFile imageFile = await _picker.getImage(
+      source: ImageSource.gallery,
+    );
+    setState(() {
+      this.file = imageFile;
+    });
+  }
+
+  Future uploadImageToFirebase(BuildContext context, PickedFile file) async {
+    String fileName = file.path;
+    StorageReference firebaseStorageRef =
+        FirebaseStorage.instance.ref().child('upload/$fileName');
+    StorageUploadTask uploadTask = firebaseStorageRef.putFile(File(file.path));
+    StorageTaskSnapshot taskSnapshot = await uploadTask.onComplete;
+    taskSnapshot.ref.getDownloadURL().then((fileURL) => setState(() {
+          _uploadedFileURL = fileURL;
+        }));
+  }
+
   void _addTodo(Todo todo) {
-    Firestore.instance.collection('todo').add(
-        {'title': todo.title, 'expired': todo.expired, 'isDone': todo.isDone});
+    Firestore.instance.collection('todo').add({
+      'title': todo.title,
+      'expired': todo.expired,
+      'isDone': todo.isDone,
+      'photo': todo.photo
+    });
     _todoController.text = "";
   }
 
@@ -336,15 +399,17 @@ class _AddPageState extends State<AddPage> {
                                   color: Colors.pinkAccent,
                                   textColor: Colors.white,
                                   onPressed: () => {
-                                    Navigator.pop(context),
-                                    _addTodo(Todo(_todoController.text,
-                                        expired: Timestamp
-                                            .fromMillisecondsSinceEpoch(
-                                                _selectedDate
-                                                    .millisecondsSinceEpoch))),
+                                    uploadImageToFirebase(context, file),
+                                    _addTodo(Todo(
+                                        _todoController.text,
+                                        Timestamp.fromMillisecondsSinceEpoch(
+                                            _selectedDate
+                                                .millisecondsSinceEpoch),
+                                        photo: _uploadedFileURL)),
                                     setState(() {
                                       _selectedDate = null;
                                     }),
+                                    Navigator.pop(context),
                                   },
                                   child: Text("등록하기"),
                                 ),
@@ -354,9 +419,26 @@ class _AddPageState extends State<AddPage> {
                         ],
                       ),
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        mainAxisAlignment: MainAxisAlignment.start,
                         children: [
-                          GestureDetector(
+                          InkWell(
+                            onTap: () => pickImageFromGallery(),
+                            child: Padding(
+                              padding: const EdgeInsets.only(right: 8.0),
+                              child: Row(
+                                children: [
+                                  IconButton(
+                                    onPressed: () => pickImageFromGallery(),
+                                    color: Colors.pinkAccent,
+                                    icon: Icon(Icons
+                                        .photo_size_select_actual_outlined),
+                                  ),
+                                  Text('사진 고르기'),
+                                ],
+                              ),
+                            ),
+                          ),
+                          InkWell(
                             onTap: () {
                               Future<DateTime> selectedDate = showDatePicker(
                                   context: context,
@@ -374,55 +456,44 @@ class _AddPageState extends State<AddPage> {
                                     _selectedDate = date;
                                   }));
                             },
-                            child: Row(
-                              children: [
-                                IconButton(
-                                  color: Colors.pinkAccent,
-                                  icon: Icon(Icons.calendar_today_sharp),
-                                  onPressed: () {
-                                    Future<DateTime> selectedDate =
-                                        showDatePicker(
-                                            context: context,
-                                            initialDate: DateTime.now(),
-                                            firstDate: DateTime.now(),
-                                            lastDate: DateTime(2050),
-                                            builder: (BuildContext context,
-                                                Widget child) {
-                                              return Theme(
-                                                data: ThemeData.light(),
-                                                child: child,
-                                              );
-                                            });
-                                    selectedDate.then((date) => setState(() {
-                                          _selectedDate = date;
-                                        }));
-                                  },
-                                ),
-                                if (_selectedDate != null)
-                                  Text(
-                                      '선택된 유효 기간: ${DateFormat('yyyy/MM/dd').format(_selectedDate)}')
-                                else
-                                  Text('유효 기간 고르기'),
-                              ],
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.only(right: 8.0),
-                            child: Row(
-                              children: [
-                                IconButton(
-                                  color: Colors.pinkAccent,
-                                  icon: Icon(
-                                      Icons.photo_size_select_actual_outlined),
-                                  onPressed: () => {},
-                                ),
-                                Text('사진 고르기'),
-                              ],
+                            child: Padding(
+                              padding: const EdgeInsets.only(right: 8.0),
+                              child: Row(
+                                children: [
+                                  IconButton(
+                                    color: Colors.pinkAccent,
+                                    icon: Icon(Icons.calendar_today_sharp),
+                                    onPressed: () {
+                                      Future<DateTime> selectedDate =
+                                          showDatePicker(
+                                              context: context,
+                                              initialDate: DateTime.now(),
+                                              firstDate: DateTime.now(),
+                                              lastDate: DateTime(2050),
+                                              builder: (BuildContext context,
+                                                  Widget child) {
+                                                return Theme(
+                                                  data: ThemeData.light(),
+                                                  child: child,
+                                                );
+                                              });
+                                      selectedDate.then((date) => setState(() {
+                                            _selectedDate = date;
+                                          }));
+                                    },
+                                  ),
+                                  if (_selectedDate != null)
+                                    Text(
+                                        '선택된 유효 기간: ${DateFormat('yyyy/MM/dd').format(_selectedDate)}   ')
+                                  else
+                                    Text('유효 기간 고르기   '),
+                                ],
+                              ),
                             ),
                           ),
                         ],
                       ),
-                      Image.network('https://picsum.photos/1000?image=5')
+                      if (file != null) Image.file(File(file.path))
                     ],
                   )),
                 ],
