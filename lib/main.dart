@@ -1,21 +1,13 @@
 import 'dart:io';
-import 'dart:typed_data';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:async';
-import 'dart:io';
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-
 import 'package:path/path.dart'
     as path; //중요!!!! 임시 저장소에 압충하기 위해 입시 저장소 path을 알아내기 위한 라이브러리
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 void main() {
   runApp(MyApp());
@@ -43,11 +35,11 @@ class MyApp extends StatelessWidget {
                   labelColor: Colors.grey,
                   tabs: [
                     Padding(
-                      padding: const EdgeInsets.all(12.0),
+                      padding: const EdgeInsets.all(18.0),
                       child: Text('미사용'),
                     ),
                     Padding(
-                      padding: const EdgeInsets.all(12.0),
+                      padding: const EdgeInsets.all(18.0),
                       child: Text('사용완료'),
                     ),
                   ],
@@ -66,13 +58,13 @@ class MyApp extends StatelessWidget {
 }
 
 class Todo {
-  bool isDone;
   String title;
   Timestamp expired;
-  Timestamp used;
   String photo;
+  Timestamp used;
+  bool isDone;
 
-  Todo(this.title, this.expired, {this.used, this.isDone = false, this.photo});
+  Todo(this.title, this.expired, this.photo, {this.used, this.isDone = false});
 }
 
 void _deleteTodo(DocumentSnapshot doc) {
@@ -182,8 +174,8 @@ class _TodoListPageState extends State<TodoListPage> {
 
   Widget _buildItemWidget(DocumentSnapshot doc) {
     //FireStore 문서는 DocumentSnapshot 클래스의 인스턴스
-    final todo = Todo(doc["title"], doc['expired'],
-        used: doc['used'], isDone: doc['isDone'], photo: doc['photo']);
+    final todo = Todo(doc["title"], doc['expired'], doc['photo'],
+        used: doc['used'], isDone: doc['isDone']);
     return ListTile(
         onLongPress: () => {_showDialog(doc)},
         onTap: () => {
@@ -260,8 +252,8 @@ class _DetailPageState extends State<DetailPage> {
 
   Widget _buildDetailWidget(DocumentSnapshot doc) {
     //FireStore 문서는 DocumentSnapshot 클래스의 인스턴스
-    final todo = Todo(doc["title"], doc['expired'],
-        used: doc['used'], isDone: doc['isDone'], photo: doc['photo']);
+    final todo = Todo(doc["title"], doc['expired'], doc['photo'],
+        used: doc['used'], isDone: doc['isDone']);
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -303,6 +295,9 @@ class _DetailPageState extends State<DetailPage> {
   }
 }
 
+File _image;
+String _uploadedFileURL;
+
 class AddPage extends StatefulWidget {
   @override
   _AddPageState createState() => _AddPageState();
@@ -312,36 +307,34 @@ class _AddPageState extends State<AddPage> {
   var _todoController = TextEditingController();
   DateTime _selectedDate;
 
-  final ImagePicker _picker = ImagePicker();
-  PickedFile file;
-  String _uploadedFileURL;
-
-  pickImageFromGallery() async {
-    PickedFile imageFile = await _picker.getImage(
-      source: ImageSource.gallery,
-    );
-    setState(() {
-      this.file = imageFile;
+  Future chooseFile() async {
+    await ImagePicker.pickImage(source: ImageSource.gallery).then((image) {
+      setState(() {
+        _image = image;
+      });
     });
   }
 
-  Future uploadImageToFirebase(BuildContext context, PickedFile file) async {
-    String fileName = file.path;
-    StorageReference firebaseStorageRef =
-        FirebaseStorage.instance.ref().child('upload/$fileName');
-    StorageUploadTask uploadTask = firebaseStorageRef.putFile(File(file.path));
-    StorageTaskSnapshot taskSnapshot = await uploadTask.onComplete;
-    taskSnapshot.ref.getDownloadURL().then((fileURL) => setState(() {
-          _uploadedFileURL = fileURL;
-        }));
+  Future uploadFile() async {
+    StorageReference storageReference = FirebaseStorage.instance
+        .ref()
+        .child('upload/${path.basename(_image.path)}');
+    StorageUploadTask uploadTask = storageReference.putFile(_image);
+    await uploadTask.onComplete;
+    print('File Uploaded');
+    storageReference.getDownloadURL().then((fileURL) {
+      setState(() {
+        _uploadedFileURL = fileURL;
+      });
+    });
   }
 
   void _addTodo(Todo todo) {
     Firestore.instance.collection('todo').add({
       'title': todo.title,
       'expired': todo.expired,
+      'photo': todo.photo,
       'isDone': todo.isDone,
-      'photo': todo.photo
     });
     _todoController.text = "";
   }
@@ -399,15 +392,17 @@ class _AddPageState extends State<AddPage> {
                                   color: Colors.pinkAccent,
                                   textColor: Colors.white,
                                   onPressed: () => {
-                                    uploadImageToFirebase(context, file),
+                                    uploadFile(),
                                     _addTodo(Todo(
                                         _todoController.text,
                                         Timestamp.fromMillisecondsSinceEpoch(
                                             _selectedDate
                                                 .millisecondsSinceEpoch),
-                                        photo: _uploadedFileURL)),
+                                        _uploadedFileURL)),
                                     setState(() {
                                       _selectedDate = null;
+                                      _uploadedFileURL = null;
+                                      _image = null;
                                     }),
                                     Navigator.pop(context),
                                   },
@@ -422,13 +417,13 @@ class _AddPageState extends State<AddPage> {
                         mainAxisAlignment: MainAxisAlignment.start,
                         children: [
                           InkWell(
-                            onTap: () => pickImageFromGallery(),
+                            onTap: () => chooseFile(),
                             child: Padding(
                               padding: const EdgeInsets.only(right: 8.0),
                               child: Row(
                                 children: [
                                   IconButton(
-                                    onPressed: () => pickImageFromGallery(),
+                                    // onPressed: () => chooseFile() ,
                                     color: Colors.pinkAccent,
                                     icon: Icon(Icons
                                         .photo_size_select_actual_outlined),
@@ -463,24 +458,6 @@ class _AddPageState extends State<AddPage> {
                                   IconButton(
                                     color: Colors.pinkAccent,
                                     icon: Icon(Icons.calendar_today_sharp),
-                                    onPressed: () {
-                                      Future<DateTime> selectedDate =
-                                          showDatePicker(
-                                              context: context,
-                                              initialDate: DateTime.now(),
-                                              firstDate: DateTime.now(),
-                                              lastDate: DateTime(2050),
-                                              builder: (BuildContext context,
-                                                  Widget child) {
-                                                return Theme(
-                                                  data: ThemeData.light(),
-                                                  child: child,
-                                                );
-                                              });
-                                      selectedDate.then((date) => setState(() {
-                                            _selectedDate = date;
-                                          }));
-                                    },
                                   ),
                                   if (_selectedDate != null)
                                     Text(
@@ -493,7 +470,7 @@ class _AddPageState extends State<AddPage> {
                           ),
                         ],
                       ),
-                      if (file != null) Image.file(File(file.path))
+                      if (_image != null) Image.file(_image)
                     ],
                   )),
                 ],
