@@ -44,7 +44,7 @@ class MyApp extends StatelessWidget {
                 Expanded(
                   flex: 1,
                   child: TabBarView(
-                    children: [TodoListPage(), TodoListPage()],
+                    children: [TodoListPage(false), TodoListPage(true)],
                   ),
                 )
               ],
@@ -59,6 +59,7 @@ class Todo {
   String title;
   Timestamp expired;
   Timestamp used;
+  String photo;
 
   Todo(this.title, {this.expired, this.used, this.isDone = false});
 }
@@ -74,6 +75,10 @@ void _toggleTodo(DocumentSnapshot doc) {
 }
 
 class TodoListPage extends StatefulWidget {
+  final bool isShowDone;
+
+  const TodoListPage(this.isShowDone);
+
   @override
   _TodoListPageState createState() => _TodoListPageState();
 }
@@ -123,12 +128,12 @@ class _TodoListPageState extends State<TodoListPage> {
                 // 스트림은 자료가 변경되었을 때 반응하여 화면을 다시 그려준다.
                 stream: Firestore.instance
                     .collection('todo')
-                    // .where('isDone', isEqualTo: false)
-                    .orderBy("expired", descending: false)
+                    .where('isDone', isEqualTo: widget.isShowDone)
+                    // .orderBy("expired", descending: false)
                     .snapshots(),
                 builder: (context, snapshot) {
                   if (!snapshot.hasData) {
-                    return CircularProgressIndicator();
+                    return Container();
                   }
 
                   final documents = snapshot.data.documents;
@@ -140,6 +145,10 @@ class _TodoListPageState extends State<TodoListPage> {
                   //     : (a['expired'].compareTo(b['expired']) <= 0 // 미사용
                   //         ? 1
                   //         : -3)); // 내림차순
+
+                  documents.sort(widget.isShowDone
+                      ? ((a, b) => b['expired'].compareTo(a['expired']))
+                      : ((a, b) => a['expired'].compareTo(b['expired'])));
 
                   // UI 반환
                   return Expanded(
@@ -183,7 +192,7 @@ class _TodoListPageState extends State<TodoListPage> {
             ),
             color: todo.isDone ? Colors.grey : Colors.pinkAccent,
             textColor: Colors.white,
-            child: todo.isDone ? Text("사용완료") : Text("사용하기"),
+            child: todo.isDone ? Text("사용취소") : Text("사용하기"),
             onPressed: () => {_toggleTodo(doc)}));
   }
 }
@@ -233,15 +242,21 @@ class _DetailPageState extends State<DetailPage> {
           ),
           Text(
               '유효기간: ${DateFormat('yyyy/MM/dd').format(todo.expired.toDate()).toString()}'),
-          (todo.used != null) ? Text('사용날짜: ${todo.used}') : Text(""),
-          FlatButton(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(18.0),
+          (todo.isDone == true)
+              ? Text(
+                  '사용날짜: ${DateFormat('yyyy/MM/dd hh:mm:ss').format(todo.used.toDate()).toString()}')
+              : Text(""),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: FlatButton(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18.0),
+              ),
+              color: todo.isDone ? Colors.grey : Colors.pinkAccent,
+              textColor: Colors.white,
+              onPressed: () => {_toggleTodo(doc)},
+              child: todo.isDone ? Text("사용취소") : Text("사용하기"),
             ),
-            color: todo.isDone ? Colors.grey : Colors.pinkAccent,
-            textColor: Colors.white,
-            onPressed: () => {_toggleTodo(doc)},
-            child: todo.isDone ? Text("사용완료") : Text("사용하기"),
           ),
           SizedBox(
               width: 300,
