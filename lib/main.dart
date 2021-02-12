@@ -5,9 +5,9 @@ import 'package:intl/intl.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:async';
-import 'package:flutter/cupertino.dart';
 import 'package:path/path.dart'
     as path; //중요!!!! 임시 저장소에 압충하기 위해 입시 저장소 path을 알아내기 위한 라이브러리
+import 'package:extended_image/extended_image.dart';
 
 void main() {
   runApp(MyApp());
@@ -254,23 +254,19 @@ class _DetailPageState extends State<DetailPage> {
     //FireStore 문서는 DocumentSnapshot 클래스의 인스턴스
     final todo = Todo(doc["title"], doc['expired'], doc['photo'],
         used: doc['used'], isDone: doc['isDone']);
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            '${todo.title}',
-            style: TextStyle(fontSize: 22),
-          ),
-          Text(
-              '유효기간: ${DateFormat('yyyy/MM/dd').format(todo.expired.toDate()).toString()}'),
-          (todo.isDone == true)
-              ? Text(
-                  '사용날짜: ${DateFormat('yyyy/MM/dd hh:mm:ss').format(todo.used.toDate()).toString()}')
-              : Text(""),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: FlatButton(
+    return SingleChildScrollView(
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 18.0),
+              child: Text(
+                '${todo.title}',
+                style: TextStyle(fontSize: 22),
+              ),
+            ),
+            FlatButton(
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(18.0),
               ),
@@ -279,17 +275,24 @@ class _DetailPageState extends State<DetailPage> {
               onPressed: () => {_toggleTodo(doc)},
               child: todo.isDone ? Text("사용취소") : Text("사용하기"),
             ),
-          ),
-          SizedBox(
-              width: 300,
-              height: 300,
+            Text(
+                '유효기간: ${DateFormat('yyyy/MM/dd').format(todo.expired.toDate()).toString()}'),
+            (todo.isDone == true)
+                ? Text(
+                    '사용날짜: ${DateFormat('yyyy/MM/dd hh:mm:ss').format(todo.used.toDate()).toString()}')
+                : Text(""),
+            Padding(
+              padding: const EdgeInsets.all(8.0),
               child: todo.photo == null
                   ? Icon(Icons.warning_amber_sharp)
-                  : Image.network(
+                  : ExtendedImage.network(
                       todo.photo,
-                      fit: BoxFit.cover,
-                    )),
-        ],
+                      fit: BoxFit.fitWidth,
+                      cache: true,
+                    ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -372,7 +375,8 @@ class _AddPageState extends State<AddPage> {
                                   child: TextField(
                                     decoration: new InputDecoration(
                                         contentPadding: const EdgeInsets.only(
-                                            left: 14.0, bottom: 8.0, top: 8.0),
+                                          left: 14.0,
+                                        ),
                                         border: new OutlineInputBorder(
                                             borderRadius:
                                                 BorderRadius.circular(18.0),
@@ -417,23 +421,6 @@ class _AddPageState extends State<AddPage> {
                         mainAxisAlignment: MainAxisAlignment.start,
                         children: [
                           InkWell(
-                            onTap: () => chooseFile(),
-                            child: Padding(
-                              padding: const EdgeInsets.only(right: 8.0),
-                              child: Row(
-                                children: [
-                                  IconButton(
-                                    // onPressed: () => chooseFile() ,
-                                    color: Colors.pinkAccent,
-                                    icon: Icon(Icons
-                                        .photo_size_select_actual_outlined),
-                                  ),
-                                  Text('사진 고르기'),
-                                ],
-                              ),
-                            ),
-                          ),
-                          InkWell(
                             onTap: () {
                               Future<DateTime> selectedDate = showDatePicker(
                                   context: context,
@@ -464,6 +451,23 @@ class _AddPageState extends State<AddPage> {
                                         '선택된 유효 기간: ${DateFormat('yyyy/MM/dd').format(_selectedDate)}   ')
                                   else
                                     Text('유효 기간 고르기   '),
+                                ],
+                              ),
+                            ),
+                          ),
+                          InkWell(
+                            onTap: () => chooseFile(),
+                            child: Padding(
+                              padding: const EdgeInsets.only(right: 8.0),
+                              child: Row(
+                                children: [
+                                  IconButton(
+                                    // onPressed: () => chooseFile() ,
+                                    color: Colors.pinkAccent,
+                                    icon: Icon(Icons
+                                        .photo_size_select_actual_outlined),
+                                  ),
+                                  Text('사진 고르기'),
                                 ],
                               ),
                             ),
