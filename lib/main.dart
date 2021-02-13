@@ -90,6 +90,11 @@ class Todo {
 }
 
 void _deleteTodo(DocumentSnapshot doc) {
+  String filename = doc['photo'].split("upload%2F")[1].split("?alt=")[0];
+  StorageReference storageReference =
+      FirebaseStorage.instance.ref().child('upload/$filename');
+  storageReference.delete();
+
   Firestore.instance.collection('todo').document(doc.documentID).delete();
 }
 
@@ -372,7 +377,7 @@ class _AddPageState extends State<AddPage> {
     });
   }
 
-  void _addTodo(Todo todo) {
+  Future _addTodo(Todo todo) async {
     Firestore.instance.collection('todo').add({
       'title': todo.title,
       'expired': todo.expired,
