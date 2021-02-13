@@ -314,8 +314,22 @@ class _DetailPageState extends State<DetailPage> {
                   ? Icon(Icons.warning_amber_sharp)
                   : ExtendedImage.network(
                       todo.photo,
-                      fit: BoxFit.fitWidth,
+                      fit: BoxFit.contain,
                       cache: true,
+                      mode: ExtendedImageMode.gesture,
+                      initGestureConfigHandler: (state) {
+                        return GestureConfig(
+                          minScale: 0.9,
+                          animationMinScale: 0.7,
+                          maxScale: 3.0,
+                          animationMaxScale: 3.5,
+                          speed: 1.0,
+                          inertialSpeed: 100.0,
+                          initialScale: 1.0,
+                          inPageView: false,
+                          initialAlignment: InitialAlignment.center,
+                        );
+                      },
                     ),
             ),
           ],
