@@ -345,11 +345,30 @@ class _AddPageState extends State<AddPage> {
         .child('upload/${path.basename(_image.path)}');
     StorageUploadTask uploadTask = storageReference.putFile(_image);
     await uploadTask.onComplete;
-    print('File Uploaded');
+    print('실행 + File Uploaded');
     storageReference.getDownloadURL().then((fileURL) {
+      // setState(() {
+      //   _uploadedFileURL = fileURL;
+      // });
+      // Navigator.pop(context);
+      // return _uploadedFileURL;
+
+      _addTodo(Todo(
+        _todoController.text,
+        Timestamp.fromMillisecondsSinceEpoch(
+            _selectedDate.millisecondsSinceEpoch),
+        fileURL,
+        used: Timestamp.fromMillisecondsSinceEpoch(
+            DateTime.now().toLocal().millisecondsSinceEpoch),
+      ));
+
       setState(() {
-        _uploadedFileURL = fileURL;
+        _selectedDate = null;
+        _uploadedFileURL = null;
+        _image = null;
       });
+
+      Navigator.pop(context);
     });
   }
 
@@ -359,6 +378,7 @@ class _AddPageState extends State<AddPage> {
       'expired': todo.expired,
       'photo': todo.photo,
       'isDone': todo.isDone,
+      'used': todo.used
     });
     _todoController.text = "";
   }
@@ -416,21 +436,8 @@ class _AddPageState extends State<AddPage> {
                                   ),
                                   color: Colors.pinkAccent,
                                   textColor: Colors.white,
-                                  onPressed: () => {
-                                    uploadFile(),
-                                    _addTodo(Todo(
-                                        _todoController.text,
-                                        Timestamp.fromMillisecondsSinceEpoch(
-                                            _selectedDate
-                                                .millisecondsSinceEpoch),
-                                        _uploadedFileURL)),
-                                    setState(() {
-                                      _selectedDate = null;
-                                      _uploadedFileURL = null;
-                                      _image = null;
-                                    }),
-                                    Navigator.pop(context),
-                                  },
+                                  onPressed: () =>
+                                      {uploadFile().then((value) => {})},
                                   child: Text("등록하기"),
                                 ),
                               ),
