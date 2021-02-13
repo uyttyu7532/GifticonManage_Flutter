@@ -363,8 +363,9 @@ class _AddPageState extends State<AddPage> {
         .ref()
         .child('upload/${path.basename(_image.path)}');
     StorageUploadTask uploadTask = storageReference.putFile(_image);
+    Navigator.pop(context);
+
     await uploadTask.onComplete;
-    print('실행 + File Uploaded');
     storageReference.getDownloadURL().then((fileURL) {
       // setState(() {
       //   _uploadedFileURL = fileURL;
@@ -386,12 +387,10 @@ class _AddPageState extends State<AddPage> {
         _uploadedFileURL = null;
         _image = null;
       });
-
-      Navigator.pop(context);
     });
   }
 
-  Future _addTodo(Todo todo) async {
+  _addTodo(Todo todo) {
     Firestore.instance.collection('todo').add({
       'title': todo.title,
       'expired': todo.expired,
