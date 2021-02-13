@@ -17,6 +17,19 @@ class MyApp extends StatelessWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
+    return new MaterialApp(
+      title: 'Flutter Demo',
+      home: new MyHomePage(),
+      routes: <String, WidgetBuilder>{
+        '/add': (BuildContext context) => new AddPage(),
+      },
+    );
+  }
+}
+
+class MyHomePage extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
     return MaterialApp(
       theme: ThemeData(
         primarySwatch: Colors.deepPurple,
@@ -26,8 +39,17 @@ class MyApp extends StatelessWidget {
         length: 2,
         child: Scaffold(
             appBar: AppBar(
-              title: Text('예롱 깊티'),
+              title: Text(''),
             ),
+            floatingActionButton: Padding(
+              padding: const EdgeInsets.all(18.0),
+              child: FloatingActionButton(
+                onPressed: () => {Navigator.of(context).pushNamed('/add')},
+                child: Icon(Icons.add),
+              ),
+            ),
+            floatingActionButtonLocation:
+                FloatingActionButtonLocation.miniCenterTop,
             body: Column(
               children: <Widget>[
                 TabBar(
@@ -121,13 +143,13 @@ class _TodoListPageState extends State<TodoListPage> {
     return Scaffold(
       floatingActionButton: Padding(
         padding: const EdgeInsets.all(8.0),
-        child: FloatingActionButton(
-          onPressed: () {
-            Navigator.push(
-                context, MaterialPageRoute(builder: (context) => AddPage()));
-          },
-          child: Icon(Icons.add),
-        ),
+        // child: FloatingActionButton(
+        //   onPressed: () {
+        //     Navigator.push(
+        //         context, MaterialPageRoute(builder: (context) => AddPage()));
+        //   },
+        //   child: Icon(Icons.add),
+        // ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(10.0),
@@ -298,9 +320,6 @@ class _DetailPageState extends State<DetailPage> {
   }
 }
 
-File _image;
-String _uploadedFileURL;
-
 class AddPage extends StatefulWidget {
   @override
   _AddPageState createState() => _AddPageState();
@@ -309,6 +328,8 @@ class AddPage extends StatefulWidget {
 class _AddPageState extends State<AddPage> {
   var _todoController = TextEditingController();
   DateTime _selectedDate;
+  File _image;
+  String _uploadedFileURL;
 
   Future chooseFile() async {
     await ImagePicker.pickImage(source: ImageSource.gallery).then((image) {
