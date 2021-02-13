@@ -436,11 +436,19 @@ class _AddPageState extends State<AddPage> {
                                         contentPadding: const EdgeInsets.only(
                                           left: 14.0,
                                         ),
-                                        border: new OutlineInputBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(18.0),
-                                            borderSide: new BorderSide(
-                                                color: Colors.teal)),
+                                        focusedBorder: OutlineInputBorder(
+                                          borderSide: BorderSide(
+                                              color: Colors.pinkAccent,
+                                              width: 2.0),
+                                          borderRadius:
+                                              BorderRadius.circular(25.0),
+                                        ),
+                                        enabledBorder: OutlineInputBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(25.0),
+                                          borderSide: BorderSide(
+                                              color: Colors.grey, width: 2.0),
+                                        ),
                                         hintText: 'ex) 스타벅스 아메리카노'),
                                     controller: _todoController,
                                   ),
@@ -476,7 +484,14 @@ class _AddPageState extends State<AddPage> {
                                   builder:
                                       (BuildContext context, Widget child) {
                                     return Theme(
-                                      data: ThemeData.light(),
+                                      data: ThemeData.from(
+                                        colorScheme: ColorScheme.fromSwatch(
+                                            backgroundColor:
+                                                createMaterialColor(
+                                                    Color(0xfff0f0f0)),
+                                            primarySwatch: createMaterialColor(
+                                                Color(0xffff4586))),
+                                      ),
                                       child: child,
                                     );
                                   });
@@ -531,4 +546,24 @@ class _AddPageState extends State<AddPage> {
       ),
     ); //
   }
+}
+
+MaterialColor createMaterialColor(Color color) {
+  List strengths = <double>[.05];
+  Map swatch = <int, Color>{};
+  final int r = color.red, g = color.green, b = color.blue;
+
+  for (int i = 1; i < 10; i++) {
+    strengths.add(0.1 * i);
+  }
+  strengths.forEach((strength) {
+    final double ds = 0.5 - strength;
+    swatch[(strength * 1000).round()] = Color.fromRGBO(
+      r + ((ds < 0 ? r : (255 - r)) * ds).round(),
+      g + ((ds < 0 ? g : (255 - g)) * ds).round(),
+      b + ((ds < 0 ? b : (255 - b)) * ds).round(),
+      1,
+    );
+  });
+  return MaterialColor(color.value, swatch);
 }
